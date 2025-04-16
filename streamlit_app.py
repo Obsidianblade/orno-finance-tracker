@@ -98,34 +98,29 @@ def generate_pdf(data):
 
         def body(self):
             self.set_font("Arial", "", 12)
-            self.cell(0, 10, f"Date: {last['Date']}", ln=True)
-            self.cell(0, 10, f"Sales: {last['Sales']:.2f} BDT", ln=True)
-            self.cell(0, 10, f"Expenses: {last['Expenses']:.2f} BDT", ln=True)
-            self.cell(0, 10, f"Salary: {last['Salary']:.2f} BDT", ln=True)
-            self.cell(0, 10, f"Ad Spend: {last['Ad Spend']:.2f} BDT", ln=True)
-            self.cell(0, 10, f"Profit: {last['Profit']:.2f} BDT", ln=True)
-            self.cell(0, 10, f"Current Bank Balance: {last['Bank Balance']:.2f} BDT", ln=True)
-
-            self.ln(5)
-            self.set_font("Arial", "B", 14)
-            self.cell(0, 10, "Recommendations", ln=True)
-            self.set_font("Arial", "", 12)
-            self.cell(0, 10, f"Target Revenue: {last['Target Revenue']:.2f} BDT", ln=True)
-            self.cell(0, 10, f"Required Sales: {last['Required Sales']:.2f} BDT", ln=True)
-            self.cell(0, 10, f"Max Expenses Allowed: {last['Max Expenses']:.2f} BDT", ln=True)
-            self.cell(0, 10, f"Max Salary Budget: {last['Max Salary Budget']:.2f} BDT", ln=True)
-            self.cell(0, 10, f"Minimum Profit Margin Needed: {last['Profit Margin Needed']:.2f} BDT", ln=True)
-            self.cell(0, 10, f"New Hires Suggested: {last['New Hires']}", ln=True)
-            self.cell(0, 10, f"Expected Expense Increase: {last['Expected Expense Increase']:.2f} BDT", ln=True)
-            self.cell(0, 10, f"Revenue Boost from Hires: {last['Revenue Boost']:.2f} BDT", ln=True)
-
-            self.ln(5)
-            self.set_font("Arial", "B", 14)
-            self.cell(0, 10, "Financial Impact", ln=True)
-            self.set_font("Arial", "", 12)
-            self.cell(0, 10, f"Adjusted Profit: {last['Adjusted Profit']:.2f} BDT", ln=True)
-            self.cell(0, 10, f"Net Bank Balance: {last['Net Balance']:.2f} BDT", ln=True)
-            self.cell(0, 10, f"Future Value: {last['Future Value']:.2f} BDT", ln=True)
+            fields = [
+                ("Date", "Date"),
+                ("Sales", "Sales (BDT)"),
+                ("Expenses", "Expenses (BDT)"),
+                ("Salary", "Salary (BDT)"),
+                ("Ad Spend", "Ad Spend (BDT)"),
+                ("Profit", "Profit (BDT)"),
+                ("Bank Balance", "Bank Balance (BDT)"),
+                ("Target Revenue", "Target Revenue (BDT)"),
+                ("Required Sales", "Required Sales (BDT)"),
+                ("Max Expenses", "Max Expenses (BDT)"),
+                ("Max Salary Budget", "Max Salary (BDT)"),
+                ("Profit Margin Needed", "Min Profit Needed (BDT)"),
+                ("New Hires", "New Hires Suggested"),
+                ("Expected Expense Increase", "Expected Expense (BDT)"),
+                ("Revenue Boost", "Revenue Boost (BDT)"),
+                ("Adjusted Profit", "Adjusted Profit (BDT)"),
+                ("Net Balance", "Net Balance (BDT)"),
+                ("Future Value", "Future Value (BDT)")
+            ]
+            for key, label in fields:
+                if key in last:
+                    self.cell(0, 10, f"{label}: {last[key]:.2f}" if isinstance(last[key], (int, float)) else f"{label}: {last[key]}", ln=True)
 
         def add_chart(self):
             self.image(chart_filename, x=25, w=160)
