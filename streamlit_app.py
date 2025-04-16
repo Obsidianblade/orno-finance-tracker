@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -6,48 +5,42 @@ from fpdf import FPDF
 from datetime import datetime
 import os
 
-st.set_page_config(page_title="Orno Finance Tracker Pro", layout="wide")
+st.set_page_config(page_title="Orno Finance Tracker", layout="wide")
 
 if 'df' not in st.session_state:
     st.session_state.df = pd.DataFrame(columns=[
-        "Date", "Current Bank Balance", "Purchase", "Sales", "Sell Return", "Expenses",
-        "Salary", "Profit", "Closing Stock", "Current Balance", "Turnover",
-        "Target Liquidity (%)", "Ad Budget (20%)",
-        "Possible Future Value", "Target Future Value", "Target Revenue"
+        "Date", "Current Balance", "Purchase", "Sales", "Sell Return", "Expenses",
+        "Salary", "Profit", "Closing Stock", "Ad Spend", "Target Revenue",
+        "Possible Future Value", "Net Balance"
     ])
 
-st.title("📊 Orno Finance Tracker Pro")
+st.title("📊 Orno Finance Tracker")
 
 with st.form("entry_form", clear_on_submit=True):
     col1, col2 = st.columns(2)
     with col1:
         date = st.date_input("Date")
-        current_bank_balance = st.number_input("Current Bank Balance", step=0.01)
+        current_balance = st.number_input("Current Bank Balance", step=0.01)
         purchase = st.number_input("Purchase", step=0.01)
         sell_return = st.number_input("Sell Return", step=0.01)
         closing_stock = st.number_input("Closing Stock", step=0.01)
+        ad_spend = st.number_input("Advertisement Budget", step=0.01)
     with col2:
         sales = st.number_input("Sales", step=0.01)
         expenses = st.number_input("Expenses", step=0.01)
         salary = st.number_input("Salary", step=0.01)
-
-    target_percent = st.slider("Liquidity Target % of Turnover", 10, 100, 70)
-    target_revenue = st.number_input("Your Target Revenue (Optional)", step=0.01)
+        target_revenue = st.number_input("💰 Turnover Goal (BDT)", step=0.01)
 
     submitted = st.form_submit_button("➕ Add Entry")
 
     if submitted:
-        profit = sales - purchase - expenses - salary
-        current_balance = current_bank_balance + profit - sell_return
-        turnover = sales + sell_return
-        liquidity = turnover * (target_percent / 100)
-        ad_budget = turnover * 0.20
-        possible_future = current_balance + closing_stock
-        target_future = liquidity + ad_budget
+        profit = sales - (purchase + expenses + salary + ad_spend)
+        net_balance = current_balance + profit
+        possible_future = net_balance + closing_stock
 
         new_row = {
             "Date": date.strftime("%Y-%m-%d"),
-            "Current Bank Balance": current_bank_balance,
+            "Current Balance": current_balance,
             "Purchase": purchase,
             "Sales": sales,
             "Sell Return": sell_return,
@@ -55,13 +48,10 @@ with st.form("entry_form", clear_on_submit=True):
             "Salary": salary,
             "Profit": profit,
             "Closing Stock": closing_stock,
-            "Current Balance": current_balance,
-            "Turnover": turnover,
-            "Target Liquidity (%)": liquidity,
-            "Ad Budget (20%)": ad_budget,
+            "Ad Spend": ad_spend,
+            "Target Revenue": target_revenue,
             "Possible Future Value": possible_future,
-            "Target Future Value": target_future,
-            "Target Revenue": target_revenue
+            "Net Balance": net_balance
         }
 
         st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([new_row])], ignore_index=True)
@@ -71,45 +61,70 @@ st.markdown("### 📈 Finance Table")
 st.dataframe(st.session_state.df, use_container_width=True)
 
 def generate_pdf(data):
+    latest = data.iloc[-1]
     chart_filename = "finance_chart.png"
 
+    # Bar Chart
     plt.figure(figsize=(8, 4))
-    plt.plot(data["Date"], data["Sales"], label="Sales", marker='o')
-    plt.plot(data["Date"], data["Expenses"], label="Expenses", marker='o')
-    plt.plot(data["Date"], data["Profit"], label="Profit", marker='o')
-    plt.xticks(rotation=45)
-    plt.xlabel("Date")
+    plt.bar(["Sales", "Expenses", "Salary", "Profit"], [
+        latest["Sales"], latest["Expenses"], latest["Salary"], latest["Profit"]
+    ])
+    plt.title("Sales, Expenses, Salary, and Profit")
     plt.ylabel("Amount (BDT)")
-    plt.title("Sales, Expenses & Profit")
     plt.tight_layout()
-    plt.legend()
-    plt.grid(True)
     plt.savefig(chart_filename)
     plt.close()
 
     class PDF(FPDF):
         def header(self):
-            self.set_font("Arial", "B", 14)
+            self.set_font("Arial", "B", 16)
             self.cell(0, 10, "Orno Finance Report", ln=True, align="C")
             self.set_font("Arial", "", 10)
             self.cell(0, 10, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True, align="C")
             self.ln(5)
 
-        def table(self, df):
-            self.set_font("Arial", "B", 10)
-            headers = ["Date", "Sales", "Expenses", "Salary", "Profit", "Target Revenue"]
-            for header in headers:
-                self.cell(32, 10, header, 1, 0, "C")
+        def financial_table(self, row):
+            self.set_font("Arial", "B", 11)
+            self.cell(30, 10, "Date", 1)
+            self.cell(30, 10, "Sales", 1)
+            self.cell(30, 10, "Expenses", 1)
+            self.cell(30, 10, "Salary", 1)
+            self.cell(30, 10, "Profit", 1)
+            self.cell(30, 10, "Target Revenue", 1)
             self.ln()
             self.set_font("Arial", "", 10)
-            for _, row in df.iterrows():
-                self.cell(32, 10, str(row["Date"]), 1)
-                self.cell(32, 10, f"{row['Sales']:.2f}", 1)
-                self.cell(32, 10, f"{row['Expenses']:.2f}", 1)
-                self.cell(32, 10, f"{row['Salary']:.2f}", 1)
-                self.cell(32, 10, f"{row['Profit']:.2f}", 1)
-                self.cell(32, 10, f"{row['Target Revenue']:.2f}", 1)
-                self.ln()
+            self.cell(30, 10, str(row["Date"]), 1)
+            self.cell(30, 10, f"{row['Sales']:.2f}", 1)
+            self.cell(30, 10, f"{row['Expenses']:.2f}", 1)
+            self.cell(30, 10, f"{row['Salary']:.2f}", 1)
+            self.cell(30, 10, f"{row['Profit']:.2f}", 1)
+            self.cell(30, 10, f"{row['Target Revenue']:.2f}", 1)
+            self.ln(15)
+
+        def recommendations(self, row):
+            self.set_font("Arial", "B", 12)
+            self.cell(0, 10, "📌 Business Suggestions", ln=True)
+
+            req_sales = row["Target Revenue"]
+            max_salary = req_sales * 0.15
+            max_expense = req_sales * 0.25
+            min_profit_margin = req_sales * 0.25
+            new_hires = int(row["Salary"] / 10000)
+            rev_boost = new_hires * 5000
+            exp_increase = new_hires * 3000
+
+            self.set_font("Arial", "", 10)
+            self.multi_cell(0, 8,
+                f"• Required Sales to hit target: {req_sales:.2f} BDT\n"
+                f"• Max Expense Allowed: {max_expense:.2f} BDT\n"
+                f"• Max Salary Budget: {max_salary:.2f} BDT\n"
+                f"• Minimum Profit Margin Needed: {min_profit_margin:.2f} BDT\n"
+                f"• Number of New Hires: {new_hires}\n"
+                f"• Expected Expense Increase: {exp_increase:.2f} BDT\n"
+                f"• Revenue Boost from Hires: {rev_boost:.2f} BDT\n"
+                f"\n💼 Projected Net Balance: {row['Net Balance']:.2f} BDT"
+                f"\n📦 Future Value (with stock): {row['Possible Future Value']:.2f} BDT"
+            )
 
         def add_chart(self, path):
             self.image(path, x=25, w=160)
@@ -117,24 +132,26 @@ def generate_pdf(data):
 
     pdf = PDF()
     pdf.add_page()
-    pdf.table(data)
+    pdf.financial_table(latest)
+    pdf.recommendations(latest)
     pdf.add_chart(chart_filename)
-    output_name = f"Orno_Finance_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    output_name = f"Orno_Finance_Report_Pro_Clean.pdf"
     pdf.output(output_name)
     os.remove(chart_filename)
     return output_name
 
 col1, col2 = st.columns(2)
 with col1:
-    if st.button("📄 Export to PDF"):
+    if st.button("📄 Generate Professional PDF"):
         if not st.session_state.df.empty:
             output_pdf = generate_pdf(st.session_state.df)
             with open(output_pdf, "rb") as file:
-                st.download_button(label="📥 Download PDF", data=file, file_name=output_pdf, mime="application/pdf")
+                st.download_button(label="📥 Download Report", data=file,
+                                   file_name=output_pdf, mime="application/pdf")
         else:
             st.warning("No data to export!")
 
 with col2:
-    if st.download_button("📥 Export to Excel", data=st.session_state.df.to_csv(index=False),
+    if st.download_button("📥 Export as CSV", data=st.session_state.df.to_csv(index=False),
                           file_name="orno_finance_data.csv", mime="text/csv"):
-        st.success("Excel exported.")
+        st.success("✅ CSV exported.")
