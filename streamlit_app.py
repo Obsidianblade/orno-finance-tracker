@@ -5,39 +5,40 @@ from fpdf import FPDF
 from datetime import datetime
 import os
 
-st.set_page_config(page_title="Orno Finance Pro Dashboard", layout="wide")
+st.set_page_config(page_title="Orno Finance Tracker", layout="wide")
 
 if 'df' not in st.session_state:
     st.session_state.df = pd.DataFrame(columns=[
         "Date", "Registered By", "Bank Balance", "Sales", "Purchase", "Expenses",
-        "Salary", "Closing Stock", "Profit", "Target Net Profit", "Sales Needed",
-        "Expense Reduction Needed", "Future Value"
+        "Salary", "Ad Spend", "Closing Stock", "Profit", "Target Revenue",
+        "Turnover %", "Sales Needed", "Expense Reduction Needed", "Future Value"
     ])
 
-st.title("📊 Orno Finance Pro Dashboard")
-st.markdown("---")
+st.title("📊 Orno Finance Tracker")
 
 with st.form("entry_form", clear_on_submit=True):
     col1, col2 = st.columns(2)
     with col1:
-        date = st.date_input("🗓️ Date")
+        date = st.date_input("📅 Date")
         registered_by = st.text_input("👤 Registered By")
-        bank_balance = st.number_input("🏦 Current Bank Balance", step=0.01)
-        sales = st.number_input("📈 Sales", step=0.01)
-        purchase = st.number_input("🛒 Purchase", step=0.01)
-        closing_stock = st.number_input("📦 Closing Stock", step=0.01)
+        bank_balance = st.number_input("🏦 Bank Balance (BDT)", step=0.01)
+        sales = st.number_input("📈 Sales (BDT)", step=0.01)
+        purchase = st.number_input("🛒 Purchase (BDT)", step=0.01)
+        closing_stock = st.number_input("📦 Closing Stock (BDT)", step=0.01)
     with col2:
-        expenses = st.number_input("💸 Expenses", step=0.01)
-        salary = st.number_input("👔 Salary", step=0.01)
-        target_net_profit = st.number_input("🎯 Target Net Profit (BDT)", step=0.01)
+        expenses = st.number_input("💸 Expenses (BDT)", step=0.01)
+        salary = st.number_input("👔 Salary (BDT)", step=0.01)
+        ad_spend = st.number_input("📣 Ad Spend (BDT)", step=0.01)
+        turnover_goal = st.slider("🎯 Turnover Goal (%)", 0, 100, 30)
+        target_revenue = st.number_input("🎯 Target Revenue (BDT)", step=0.01)
 
     submitted = st.form_submit_button("➕ Add Entry")
 
     if submitted:
-        profit = sales - purchase - expenses - salary
-        sales_needed = target_net_profit + purchase + expenses + salary
-        expense_reduction = max(0, (sales + closing_stock) - sales_needed)
+        profit = sales - purchase - expenses - salary - ad_spend
         future_value = bank_balance + profit + closing_stock
+        sales_needed = target_revenue
+        expense_reduction = max(0, (sales + closing_stock) - sales_needed)
 
         new_row = {
             "Date": date.strftime("%Y-%m-%d"),
@@ -47,35 +48,29 @@ with st.form("entry_form", clear_on_submit=True):
             "Purchase": purchase,
             "Expenses": expenses,
             "Salary": salary,
+            "Ad Spend": ad_spend,
             "Closing Stock": closing_stock,
             "Profit": profit,
-            "Target Net Profit": target_net_profit,
+            "Target Revenue": target_revenue,
+            "Turnover %": turnover_goal,
             "Sales Needed": sales_needed,
             "Expense Reduction Needed": expense_reduction,
             "Future Value": future_value
         }
-
         st.session_state.df = pd.concat([st.session_state.df, pd.DataFrame([new_row])], ignore_index=True)
         st.success("✅ Entry added successfully!")
 
 st.markdown("### 📋 Finance Table")
 st.dataframe(st.session_state.df, use_container_width=True)
 
-
 def generate_pdf(data):
-    chart_filename = "finance_chart.png"
+    last = data.iloc[-1]
 
-    plt.figure(figsize=(8, 4))
-    plt.plot(data["Date"], data["Sales"], label="Sales", marker='o')
-    plt.plot(data["Date"], data["Expenses"], label="Expenses", marker='o')
-    plt.plot(data["Date"], data["Profit"], label="Profit", marker='o')
-    plt.xticks(rotation=45)
-    plt.xlabel("Date")
-    plt.ylabel("Amount (BDT)")
-    plt.title("Sales, Expenses & Profit")
+    chart_filename = "finance_chart.png"
+    plt.figure(figsize=(6, 4))
+    plt.bar(["Sales", "Expenses", "Profit"], [last['Sales'], last['Expenses'], last['Profit']])
+    plt.title("Sales vs Expenses vs Profit")
     plt.tight_layout()
-    plt.legend()
-    plt.grid(True)
     plt.savefig(chart_filename)
     plt.close()
 
@@ -87,42 +82,48 @@ def generate_pdf(data):
             self.cell(0, 10, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True, align="C")
             self.ln(5)
 
-        def body(self, df):
-            last = df.iloc[-1] if not df.empty else {}
-            self.set_font("Arial", "", 10)
-            self.cell(0, 10, f"👤 Registered By: {last.get('Registered By', '-')}", ln=True)
-            self.cell(0, 10, f"💰 Sales Needed for Target: {last.get('Sales Needed', 0):.2f} BDT", ln=True)
-            self.cell(0, 10, f"📉 Expense Reduction Suggested: {last.get('Expense Reduction Needed', 0):.2f} BDT", ln=True)
-            self.cell(0, 10, f"🎯 Target Net Profit: {last.get('Target Net Profit', 0):.2f} BDT", ln=True)
-            self.cell(0, 10, f"📦 Future Value: {last.get('Future Value', 0):.2f} BDT", ln=True)
-            self.ln(10)
+        def overview(self):
+            self.set_font("Arial", "B", 12)
+            self.cell(0, 10, "Financial Overview", ln=True)
+            self.set_font("Arial", "", 11)
+            self.cell(0, 8, f"Date: {last['Date']}", ln=True)
+            self.cell(0, 8, f"Sales: {last['Sales']:.2f} BDT", ln=True)
+            self.cell(0, 8, f"Expenses: {last['Expenses']:.2f} BDT", ln=True)
+            self.cell(0, 8, f"Salary: {last['Salary']:.2f} BDT", ln=True)
+            self.cell(0, 8, f"Profit: {last['Profit']:.2f} BDT", ln=True)
+            self.cell(0, 8, f"Bank Balance: {last['Bank Balance']:.2f} BDT", ln=True)
+            self.ln(4)
 
-        def table(self, df):
-            self.set_font("Arial", "B", 10)
-            for header in ["Date", "Sales", "Expenses", "Salary", "Profit", "Target Net Profit"]:
-                self.cell(40, 10, header, 1, 0, "C")
-            self.ln()
-            self.set_font("Arial", "", 10)
-            for _, row in df.iterrows():
-                self.cell(40, 10, str(row.get("Date", "")), 1)
-                self.cell(40, 10, f"{row.get('Sales', 0):.2f}", 1)
-                self.cell(40, 10, f"{row.get('Expenses', 0):.2f}", 1)
-                self.cell(40, 10, f"{row.get('Salary', 0):.2f}", 1)
-                self.cell(40, 10, f"{row.get('Profit', 0):.2f}", 1)
-                self.cell(40, 10, f"{row.get('Target Net Profit', 0):.2f}", 1)
-                self.ln()
+        def target_summary(self):
+            self.set_font("Arial", "B", 12)
+            self.cell(0, 10, "Target Summary", ln=True)
+            self.set_font("Arial", "", 11)
+            self.cell(0, 8, f"Target Revenue: {last['Target Revenue']:.2f} BDT", ln=True)
+            self.cell(0, 8, f"Turnover Goal (%): {last['Turnover %']}%", ln=True)
+            self.cell(0, 8, f"Ad Spend: {last['Ad Spend']:.2f} BDT", ln=True)
+            self.ln(4)
 
-        def add_chart(self, path):
-            self.image(path, x=25, w=160)
-            self.ln(10)
+        def forecast(self):
+            self.set_font("Arial", "B", 12)
+            self.cell(0, 10, "Financial Forecast", ln=True)
+            self.set_font("Arial", "", 11)
+            self.cell(0, 8, f"Sales Needed: {last['Sales Needed']:.2f} BDT", ln=True)
+            self.cell(0, 8, f"Expense Reduction Needed: {last['Expense Reduction Needed']:.2f} BDT", ln=True)
+            self.cell(0, 8, f"Future Value: {last['Future Value']:.2f} BDT", ln=True)
+            self.ln(5)
+
+        def add_chart(self):
+            self.image(chart_filename, x=25, w=160)
 
     pdf = PDF()
     pdf.add_page()
-    pdf.body(data)
-    pdf.table(data)
-    pdf.add_chart(chart_filename)
-    output_name = f"Orno_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
-    pdf.output(output_name)
+    pdf.overview()
+    pdf.target_summary()
+    pdf.forecast()
+    pdf.add_chart()
+
+    output_name = f"Orno_Finance_Report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    pdf.output(output_name, 'F')
     os.remove(chart_filename)
     return output_name
 
